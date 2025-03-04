@@ -1,0 +1,25 @@
+#!/bin/bash
+#SBATCH -N 1
+#SBATCH -t 01-00:00:00 # Runtime in D-HH:MM
+#SBATCH --cpus-per-task=24 #64-16-24
+
+#SBATCH -J cellranger_multi_job  # Job name
+#SBATCH -o cellranger_multi_%j.out  # Output file
+#SBATCH -e cellranger_multi_%j.err  # Error file
+#SBATCH --mail-type=END,FAIL  # Notifications for job done & fail
+#SBATCH --mail-user=ysk13@pitt.edu  
+
+# Load the CellRanger module
+module load cellranger/8.0.0  
+
+# Remove pre-existing multi_output folder if it exists
+if [ -d "multi_p3_all_CMOs_602F" ]; then
+  rm -r multi_p3_all_CMOs_602F
+  echo "Pre-existing multi_p3_all_CMOs_602F folder deleted."
+fi
+
+# Run CellRanger multi with the specified CSV file
+cellranger multi --id=multi_p3_all_CMOs_602F --csv=multi_p3_all_CMOs_602F.csv 
+
+
+# #SBATCH --mem=128g, cpu changed from 64 to 16 by Vishal
