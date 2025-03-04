@@ -1,0 +1,79 @@
+#DEG Volcano plot, with very small p_adj_val, so epsilon was introduced
+library(ggplot2)
+library(ggrepel)
+
+# Cluster-specific dataset
+volcano_data <- clusterM2.markers
+# Find the minimum non-zero p-value and use a fraction of this as epsilon
+min_p_val_adj <- min(volcano_data$p_val_adj[volcano_data$p_val_adj > 0])
+epsilon <- min_p_val_adj / 1000
+volcano_data$p_val_adj[volcano_data$p_val_adj == 0] <- epsilon
+volcano_data$gene <- rownames(volcano_data)  # Ensure gene names are a column for labeling
+volcano_data$negLogP <- -log10(volcano_data$p_val_adj)  # Using adjusted p-values
+
+# Create a new column to distinguish gene regulation direction based on adjusted p-value and fold change
+volcano_data$regulation <- ifelse(volcano_data$p_val_adj < 0.05 & abs(volcano_data$avg_log2FC) >= 2,
+                                  ifelse(volcano_data$avg_log2FC >= 2, "Upregulated", "Downregulated"),
+                                  "Not significant")
+# Identify top 10 (if any) genes for labeling
+top10_upregulated <- head(rownames(volcano_data[order(-volcano_data$avg_log2FC), ]), 10)
+top10_downregulated <- head(rownames(volcano_data[order(volcano_data$avg_log2FC), ]), 10)
+top_genes <- c(top10_upregulated, top10_downregulated)
+
+# Define the significance threshold (p-value = 0.05)
+significance_level <- -log10(0.05)
+
+# Create the volcano plot
+options(repr.plot.width = 20, repr.plot.height = 10)  # Width and height in inches
+
+volcano_plot <- ggplot(volcano_data, aes(x = avg_log2FC, y = negLogP, color = regulation)) +
+  geom_point(alpha = 0.65, size = 5.5) +
+  scale_color_manual(values = c("Upregulated" = "red", "Downregulated" = "darkblue", "Not significant" = "black")) +
+  labs(title = "Volcano Plot: Differential Expression for M2 Macrophages",
+       x = "AvgLog2FC",
+       y = "-log10(AdjPval)") +
+  theme_minimal() +
+  coord_cartesian(ylim = c(0, max(volcano_data$negLogP) * 1.1))  # Dynamically adjust y-axis
+
+# Add vertical dashed lines at thresholds
+volcano_plot <- volcano_plot +
+  geom_vline(xintercept = c(-2, 2), linetype = "dashed", color = "grey", size = 1.5) +
+  geom_vline(xintercept = 0, size = 0.7)  # Thicken the x-axis
+
+# Add horizontal line for significance threshold
+volcano_plot <- volcano_plot +
+  geom_hline(yintercept = significance_level, linetype = "dashed", color = "grey", size = 1.5)  # Add significance threshold line
+
+# Add labels for the top genes with ggrepel to avoid overlaps
+# Adjust the labeling to include only significant genes from top lists
+volcano_plot <- volcano_plot +
+  geom_label_repel(
+    data = subset(volcano_data, gene %in% top_genes & regulation != "Not significant"),
+    aes(label = gene),  # Label only significant genes
+    fill = "white",  # Background color of labels
+    color = "black",  # Text color
+    box.padding = 0.35,
+    point.padding = 0.3,
+    segment.color = 'grey50',
+    size = 8,
+    fontface = 'bold',
+    max.overlaps = 100
+  )
+# Adjust the theme to thicken axes and labels
+volcano_plot <- volcano_plot +
+  theme(
+    axis.title = element_text(size = 20, face = "bold"),
+    axis.text = element_text(size = 20, face = "bold"),
+    axis.line = element_line(size = 1.5),  # Thicken the axis lines
+    legend.title = element_blank(),  # Remove the legend title
+    legend.text = element_text(size = 20, face = "bold")  # Enlarge the legend text
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 25),  # Center the title
+    axis.title.x = element_text(vjust = -0.1, size = 20),  # Move the x-axis label down
+    axis.text.x = element_text(angle = 0, hjust = 1, size = 20),  # Adjust x-axis text
+    axis.title.y = element_text(angle = 90, vjust = 0.5, size = 20)  # Adjust y-axis title position
+  )
+ 
+# Print the plot
+print(volcano_plot)
