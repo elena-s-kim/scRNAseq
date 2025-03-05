@@ -1,4 +1,5 @@
 #CSTransform
+#See also https://satijalab.org/seurat/articles/sctransform_vignette.html
 #Violing plot stratification discussion https://github.com/satijalab/seurat/issues/1623
 
 combined_merged <- readRDS("combined_merged_seurat_b4H.rds") #this is an object of merged combined controls and separately combined experimental variables 
