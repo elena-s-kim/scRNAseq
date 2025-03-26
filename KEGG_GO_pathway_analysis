@@ -1,0 +1,137 @@
+### KEGG_GO_pathway_analysis (to update based on all genes, not only top 10)
+# Load necessary libraries
+library(Seurat)
+library(enrichR)
+library(ggplot2)
+###(1)UPregulated###
+# Define the unique cluster names
+unique_cluster_names <- unique(obj$combined_clusters)
+
+# Function to find markers and perform enrichment analysis
+perform_enrichment_analysis <- function(obj, cluster_name) {
+  # Find markers for the cluster
+  markers <- FindMarkers(objjnd, ident.1 = cluster_name, group.by = "combined_clusters", min.pct = 0.25, logfc.threshold = 0.25)
+  
+  # Use all upregulated genes
+  upregulated_genes <- rownames(markers[markers$avg_log2FC > 0, ])
+  
+  # Perform enrichment analysis using EnrichR
+  enrichr_results <- enrichr(upregulated_genes, databases = c("KEGG_2021_Mouse", "GO_Biological_Process_2021", "GO_Cellular_Component_2021", "GO_Molecular_Function_2021", "Reactome_2021"))
+  
+  # Extract relevant results
+  return(list(
+    #KEGG = enrichr_results[["KEGG_2021_Mouse"]],
+    GO_BP = enrichr_results[["GO_Biological_Process_2021"]],
+    GO_CC = enrichr_results[["GO_Cellular_Component_2021"]],
+    GO_MF = enrichr_results[["GO_Molecular_Function_2021"]]
+    #Reactome = enrichr_results[["Reactome_2021"]]
+  ))
+}
+
+# Iterate over clusters and perform enrichment analysis
+enrichment_results_list <- lapply(unique_cluster_names, function(cluster) perform_enrichment_analysis(obj, cluster))
+
+# Visualize the results with bar plots
+plot_enrichment_results <- function(enrichment_results, cluster_name) {
+  for (db_name in names(enrichment_results)) {
+    results <- enrichment_results[[db_name]]
+    if (is.null(results)) next  # Skip if no results
+    
+    # Select top 10 pathways
+    top_pathways <- head(results, 10)
+    
+    # Define colors for different databases
+    db_colors <- c("GO_BP" = "purple", "GO_CC" = "green", "GO_MF" = "orange")
+    
+    # Create bar plot
+    p <- ggplot(top_pathways, aes(x = reorder(Term, -Combined.Score), y = Combined.Score)) +
+      geom_bar(stat = "identity", fill = db_colors[db_name]) +
+      coord_flip() +
+      ggtitle(paste("Top 10 Enriched Pathways for", db_name, "in", cluster_name)) +
+      xlab("Pathway") +
+      ylab("Combined Score") +
+      theme_minimal() +
+      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 20),
+            axis.text = element_text(face = "bold", size = 20))
+    
+    # Print the plot
+    print(p)
+  }
+}
+
+# Iterate over clusters and plot the results
+for (i in seq_along(unique_cluster_names)) {
+  plot_enrichment_results(enrichment_results_list[[i]], unique_cluster_names[i])
+}
+
+###DOWNregulated###
+KEGG_GO_pathway_analysis
+
+# Load necessary libraries
+library(Seurat)
+library(enrichR)
+library(ggplot2)
+
+# Join Layers if necessary
+# Assuming 'obj' is your Seurat object
+# objjnd <- JoinLayers(obj) # Ensure this function is correctly defined or available
+
+# Define the unique cluster names
+unique_cluster_names <- unique(obj$combined_clusters)
+
+# Function to find markers for downregulated genes and perform enrichment analysis
+perform_downreg_enrichment_analysis <- function(obj, cluster_name) {
+  # Find markers for the cluster
+  markers <- FindMarkers(objjnd, ident.1 = cluster_name, group.by = "combined_clusters", min.pct = 0.25, logfc.threshold = 0.25)
+  
+  # Use all downregulated genes
+  downregulated_genes <- rownames(markers[markers$avg_log2FC < 0, ])
+  
+  # Perform enrichment analysis using EnrichR
+  enrichr_results <- enrichr(downregulated_genes, databases = c("GO_Biological_Process_2021", "GO_Cellular_Component_2021", "GO_Molecular_Function_2021"))
+  
+  # Return the results for each database
+  return(list(
+    #KEGG = enrichr_results[["KEGG_2021_Mouse"]],
+    GO_BP = enrichr_results[["GO_Biological_Process_2021"]],
+    GO_CC = enrichr_results[["GO_Cellular_Component_2021"]],
+    GO_MF = enrichr_results[["GO_Molecular_Function_2021"]]
+  ))
+}
+
+# Iterate over clusters and perform enrichment analysis for downregulated genes
+downreg_enrichment_results_list <- lapply(unique_cluster_names, function(cluster) perform_downreg_enrichment_analysis(obj, cluster))
+
+# Visualize the results with bar plots for downregulated pathways
+plot_downreg_enrichment_results <- function(enrichment_results, cluster_name) {
+  for (db_name in names(enrichment_results)) {
+    results <- enrichment_results[[db_name]]
+    if (is.null(results)) next  # Skip if no results
+    
+    # Select top 10 pathways
+    top_pathways <- head(results, 10)
+    
+    # Define colors for different databases
+    db_colors <- c("GO_BP" = "gray40", "GO_CC" = "gray60", "GO_MF" = "gray80")
+    
+    # Create bar plot
+    p <- ggplot(top_pathways, aes(x = reorder(Term, -Combined.Score), y = Combined.Score)) +
+      geom_bar(stat = "identity", fill = db_colors[db_name]) +
+      coord_flip() +
+      scale_y_reverse() +  # Reverse the y-axis to make bars go to the left
+      ggtitle(paste("Top 10 Enriched Pathways for Downregulated Genes in", cluster_name, "-", db_name)) +
+      xlab("Pathway") +
+      ylab("Combined Score") +
+      theme_minimal() +
+      theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 20),
+            axis.text = element_text(face = "bold", size = 16))
+    
+    # Print the plot
+    print(p)
+  }
+}
+
+# Iterate over clusters and plot the results for downregulated genes
+for (i in seq_along(unique_cluster_names)) {
+  plot_downreg_enrichment_results(downreg_enrichment_results_list[[i]], unique_cluster_names[i])
+}
